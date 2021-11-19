@@ -42,46 +42,48 @@ const deleteCard = async (req, res) => {
 const putLike = async (req, res) => {
   try {
     const { cardId } = req.params;
-    const cardCheckById = await Card.findById(cardId);
-    if (cardCheckById.likes.includes(req.user._id)) {
+    const unupdatedCard = await Card.findByIdAndUpdate(cardId, { $addToSet: { likes: req.user._id } });
+    if (!unupdatedCard) {
+      throw new NotFoundError(`Не удалось найти карточку с идентификатором ${cardId} чтобы поставить лайк.`);
+    }
+    if (unupdatedCard.likes.includes(req.user._id)) {
       throw new DataError('Данный пользователь уже ставил лайк этой карточке.');
+    } else {
+      const updatedCard = await Card.findById(cardId);
+      return res.status(200).send({ data: updatedCard });
     }
-    const cardUpdateById = await Card.findByIdAndUpdate(cardId, { $addToSet: { likes: req.user._id } }, { new: true });
-    if (cardUpdateById) {
-      return res.status(200).send({ data: cardUpdateById });
-    }
-    throw new NotFoundError(`Не удалось найти карточку с идентификатором ${cardId} чтобы поставить лайк.`);
-  } catch (err) {
-    if (err instanceof DataError) {
+  } catch (err) { // все случаи ошибок из описания здесь описаны
+    if (err instanceof DataError) { // на случай если пользователь уже ставил лайк. 400
       return res.status(err.statusCode).send({ message: err.message });
     }
-    if (err instanceof NotFoundError) {
+    if (err instanceof NotFoundError) { // на случай если _id карточки не валидный. 404
       return res.status(err.statusCode).send({ message: err.message });
     }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
+    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message }); // 500
   }
 };
 
 const removeLike = async (req, res) => {
   try {
     const { cardId } = req.params;
-    const cardCheckById = await Card.findById(cardId);
-    if (!cardCheckById.likes.includes(req.user._id)) {
+    const unupdatedCard = await Card.findByIdAndUpdate(cardId, { $pull: { likes: req.user._id } });
+    if (!unupdatedCard) {
+      throw new NotFoundError(`Не удалось найти карточку с идентификатором ${cardId} чтобы снять лайк.`);
+    }
+    if (!unupdatedCard.likes.includes(req.user._id)) {
       throw new DataError('Данный пользователь не ставил лайк этой карточке.');
+    } else {
+      const updatedCard = await Card.findById(cardId);
+      return res.status(200).send({ data: updatedCard });
     }
-    const cardById = await Card.findByIdAndUpdate(cardId, { $pull: { likes: req.user._id } }, { new: true });
-    if (cardById) {
-      return res.status(200).send({ data: cardById });
-    }
-    throw new NotFoundError(`Не удалось найти карточку с идентификатором ${cardId} чтобы удалить лайк.`);
-  } catch (err) {
-    if (err instanceof DataError) {
+  } catch (err) { // все случаи ошибок из описания здесь описаны
+    if (err instanceof DataError) { // на случай если пользователь не ставил лайк. 400
       return res.status(err.statusCode).send({ message: err.message });
     }
-    if (err instanceof NotFoundError) {
+    if (err instanceof NotFoundError) { // на случай если _idкарточки не валидный. 404
       return res.status(err.statusCode).send({ message: err.message });
     }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
+    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message }); // 500
   }
 };
 

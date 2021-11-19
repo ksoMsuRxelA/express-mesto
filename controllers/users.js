@@ -24,18 +24,18 @@ const getAllUsers = (req, res) => {
 };
 
 const getUserById = async (req, res) => {
-  try {
-    const { userId } = req.params;
+  try { // в ревью вы написали что нужно обработать случай, когда дан неверный _id c кодом 400.
+    const { userId } = req.params; // но в описании написано что нужно обработать случаи с кодами 404 и 500.
     const userById = await User.findById(userId);
     if (userById) {
       return res.status(200).send({ data: userById });
     }
     throw new NotFoundError(`Пользователь с идентификатором ${userId} не был найден в базе.`);
   } catch (err) {
-    if (err instanceof NotFoundError) {
+    if (err instanceof NotFoundError) { // на случай если пользователь с _id не найден. 404
       return res.status(err.statusCode).send({ message: err.message });
     }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
+    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message }); // 500
   }
 };
 
