@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 app.use('/', users);
 app.use('/', cards);
 app.use((req, res) => {
-  res.status(404).send('<h1>Error 404: Page has not found</h1>');
+  res.status(404).send({ message: 'Error 404. Could not found such page...' });
 });
 
 app.listen(PORT, () => {
