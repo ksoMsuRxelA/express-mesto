@@ -5,11 +5,12 @@ const {
   getUserById,
   updateUserData,
   updateUserAvatar,
+  getCurrentUser,
 } = require('../controllers/users');
 
-router.post('/users', createUser);
-
 router.get('/users', getAllUsers);
+
+router.get('/users/me', getCurrentUser);
 
 router.get('/users/:userId', getUserById);
 

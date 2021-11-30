@@ -10,6 +10,12 @@ const cardSchema = new Schema({
   link: {
     type: String,
     required: true,
+    validate: {
+      validator(v) {
+        const regEx = /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/gm;
+        return regEx.test(v);
+      }
+    },
   },
   owner: {
     type: Types.ObjectId,

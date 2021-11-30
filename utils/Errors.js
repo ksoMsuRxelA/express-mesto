@@ -14,18 +14,34 @@ class NotFoundError extends Error {
   }
 }
 
-class ServiceDefaultError extends Error {
+class UnauthError extends Error {
   constructor(message) {
     super(message);
-    this.name = 'serviceDefaultError';
-    this.statusCode = 500;
+    this.name = 'Unauth';
+    this.statusCode = 401;
   }
 }
 
-const serviceError = new ServiceDefaultError('Сбой на стороне сервера или базы данных ');
+class ForbiddenError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'Forbidden';
+    this.statusCode = 403;
+  }
+}
+
+class ConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'Conflict';
+    this.statusCode = 409;
+  }
+}
 
 module.exports = {
   DataError,
   NotFoundError,
-  serviceError,
+  UnauthError,
+  ForbiddenError,
+  ConflictError,
 };

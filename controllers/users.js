@@ -1,87 +1,121 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const {
   DataError,
   NotFoundError,
-  serviceError,
+  UnauthError,
+  ConflictError,
 } = require('../utils/Errors');
 
-const createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  return User.create({ name, about, avatar })
-    .then((newUser) => res.status(201).send({ data: newUser }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: `Переданы некорректные данные: ${err.message}` });
-      }
-      return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
-    });
+const createUser = async (req, res, next) => {
+  try {
+    const { name, about, avatar, email, password } = req.body;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create({ name, about, avatar, email, password: hashedPassword });
+    return res.status(201).send({ data: newUser });
+  } catch (err) {
+    if (err.name === 'MongoServerError' && err.code === 11000) {
+      next(new ConflictError('Пользователь с таким email уже существует.'));
+    }
+    if (err.name === 'ValidationError' || err.name === 'Error') {
+      next(new DataError(err.message));
+    }
+    next(err);
+  }
 };
 
-const getAllUsers = (req, res) => {
+const getAllUsers = (req, res, next) => {
   return User.find({})
     .then((users) => res.status(200).send({ data: users }))
-    .catch((err) => res.status(serviceError.statusCode).send({ message: serviceError.message + err.message }));
+    .catch(next);
 };
 
-const getUserById = async (req, res) => {
-  try { // в ревью вы написали что нужно обработать случай, когда дан неверный _id c кодом 400.
-    const { userId } = req.params; // но в описании написано что нужно обработать случаи с кодами 404 и 500.
+const getUserById = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
     const userById = await User.findById(userId);
     if (userById) {
       return res.status(200).send({ data: userById });
     }
     throw new NotFoundError(`Пользователь с идентификатором ${userId} не был найден в базе.`);
   } catch (err) {
-    if (err instanceof NotFoundError) { // на случай если пользователь с _id не найден. 404
-      return res.status(err.statusCode).send({ message: err.message });
-    }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message }); // 500
+    next(err);
   }
 };
 
-const updateUserData = async (req, res) => {
+const updateUserData = async (req, res, next) => {
   try {
     const { name, about } = req.body;
-    const isNameValid = (name.length >= 2 && name.length <= 30);
-    const isAboutValid = (about.length >= 2 && about.length <= 30);
-    if (!isNameValid || !isAboutValid) {
-      throw new DataError('Некорректные данные. Попробуйте еще раз.');
-    }
     const userById = await User.findByIdAndUpdate(req.user._id, { name, about }, { new: true });
     if (userById) {
       return res.status(200).send({ data: userById });
     }
     throw new NotFoundError(`Пользователь с идентификатором ${req.user._id} не был найден и как результат не был обновлен.`);
   } catch (err) {
-    if (err instanceof DataError) {
-      return res.status(err.statusCode).send({ message: err.message });
-    }
-    if (err instanceof NotFoundError) {
-      return res.status(err.statusCode).send({ message: err.message });
-    }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
+    next(err);
   }
 };
 
-const updateUserAvatar = async (req, res) => {
+const updateUserAvatar = async (req, res, next) => {
   try {
     const { avatar } = req.body;
-    if (avatar.length < 8) {
-      throw new DataError('Введите URL по типу https://...');
-    }
-    const userById = await User.findByIdAndUpdate(req.user._id, { avatar }, { new: true });
+    const userById = await User.findOneAndUpdate(req.user._id, { avatar }, { new: true, runValidators: true });
     if (userById) {
       return res.status(200).send({ data: userById });
     }
     throw new NotFoundError(`Пользователь с идентификатором ${req.user._id} не был найден и как результат не был обновлен.`);
   } catch (err) {
-    if (err instanceof DataError) {
-      return res.status(err.statusCode).send({ message: err.message });
+    if (err.name === 'ValidationError') {
+      next(new DataError('Невалидная ссылка. Попробуйте еще раз.'));
     }
-    if (err instanceof NotFoundError) {
-      return res.status(err.statusCode).send({ message: err.message });
+    next(err);
+  }
+};
+
+const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      throw new UnauthError('Неправильные email/password. Попробуйте еще раз.');
     }
-    return res.status(serviceError.statusCode).send({ message: serviceError.message + err.message });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new UnauthError('Неправильные email/password. Попробуйте еще раз.');
+    }
+
+    const { NODE_ENV, JWT_SECRET } = process.env;
+
+    const token = jwt.sign(
+      { _id: user._id },
+      NODE_ENV === 'production' ? JWT_SECRET : 'some-very-secret-code',
+      { expiresIn: '7d' }
+    );
+
+    return res.status(200).cookie('jwt', token, {
+      maxAge: 3600000 * 24 * 7,
+      httpOnly: true,
+      sameSite: true,
+    }).send({ message: 'Welcome back.'});
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getCurrentUser = async (req, res, next) => { //here we should think that we have user._id prop in req object.
+  try {
+    const id = req.user._id;
+    const user = await User.findById(id);
+    if (!user) {
+      throw new UnauthError('Cначала авторизуйтесь.');
+    }
+    return res.status(200).send({ data: user });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -91,4 +125,6 @@ module.exports = {
   getUserById,
   updateUserData,
   updateUserAvatar,
+  login,
+  getCurrentUser,
 };
