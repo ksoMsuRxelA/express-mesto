@@ -11,17 +11,29 @@ const {
 router.post('/cards', celebrate({
   body: Joi.object().keys({
     name: Joi.string().min(2).max(30).required(),
-    link: Joi.string().required().uri(),
+    link: Joi.string().required().pattern(/^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/),
   }),
 }), createCard);
 
-// В остальных роутах нечего валидировать, у них только cardId
+// Не совсем понял про проверку данных из params.
 router.get('/cards', getAllCards);
 
-router.delete('/cards/:cardId', deleteCard);
+router.delete('/cards/:cardId', celebrate({
+  body: Joi.object().keys({
+    cardId: Joi.string().length(24).hex(),
+  }),
+}), deleteCard);
 
-router.put('/cards/:cardId/likes', putLike);
+router.put('/cards/:cardId/likes', celebrate({
+  body: Joi.object().keys({
+    cardId: Joi.string().length(24).hex(),
+  }),
+}), putLike);
 
-router.delete('/cards/:cardId/likes', removeLike);
+router.delete('/cards/:cardId/likes', celebrate({
+  body: Joi.object().keys({
+    cardId: Joi.string().length(24).hex(),
+  }),
+}), removeLike);
 
 module.exports = router;

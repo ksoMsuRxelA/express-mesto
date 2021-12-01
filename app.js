@@ -15,7 +15,7 @@ const joiObjectSignUp = {
   body: Joi.object().keys({ // надеюсь я Вас правильно понял и Вы просили именно это.
     name: Joi.string().min(2).max(30),
     about: Joi.string().min(2).max(30),
-    avatar: Joi.string(),
+    avatar: Joi.string().pattern(/^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/),
     email: Joi.string().required().email(),
     password: Joi.string().required(),
   }),
