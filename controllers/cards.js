@@ -1,10 +1,7 @@
 const Card = require('../models/Card');
-const { Types } = require('mongoose');
-const {
-  DataError,
-  NotFoundError,
-  ForbiddenError,
-} = require('../utils/Errors');
+const DataError = require('../utils/DataError');
+const NotFoundError = require('../utils/NotFoundError');
+const ForbiddenError = require('../utils/ForbiddenError');
 
 const createCard = (req, res, next) => {
   const { name, link } = req.body;
@@ -12,7 +9,7 @@ const createCard = (req, res, next) => {
     .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        next(new DataError(`Переданы некорректные данные: ${err.message}`))
+        next(new DataError(`Переданы некорректные данные: ${err.message}`));
       }
       next(err);
     });
@@ -40,7 +37,7 @@ const deleteCard = async (req, res, next) => {
     }
   } catch (err) {
     if (err.name === 'CastError') {
-      next(new NotFoundError(`Карточка с идентификатором ${req.params.cardId} не была найден и не удалена.`));
+      next(new DataError(`Карточка с идентификатором ${req.params.cardId} не была найден и не удалена.`));
     }
     next(err);
   }

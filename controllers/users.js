@@ -1,20 +1,36 @@
-const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const {
-  DataError,
-  NotFoundError,
-  UnauthError,
-  ConflictError,
-} = require('../utils/Errors');
+const User = require('../models/User');
+const DataError = require('../utils/DataError');
+const NotFoundError = require('../utils/NotFoundError');
+const UnauthError = require('../utils/UnauthError');
+const ConflictError = require('../utils/ConflictError');
 
 const createUser = async (req, res, next) => {
   try {
-    const { name, about, avatar, email, password } = req.body;
+    const {
+      name,
+      about,
+      avatar,
+      email,
+      password,
+    } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ name, about, avatar, email, password: hashedPassword });
-    return res.status(201).send({ data: newUser });
+    const newUser = await User.create({
+      name,
+      about,
+      avatar,
+      email,
+      password: hashedPassword,
+    });
+    return res.status(201).send({
+      name: newUser.name,
+      about: newUser.about,
+      avatar: newUser.avatar,
+      email: newUser.email,
+      _id: newUser._id,
+    });
   } catch (err) {
     if (err.name === 'MongoServerError' && err.code === 11000) {
       next(new ConflictError('Пользователь с таким email уже существует.'));
@@ -41,6 +57,9 @@ const getUserById = async (req, res, next) => {
     }
     throw new NotFoundError(`Пользователь с идентификатором ${userId} не был найден в базе.`);
   } catch (err) {
+    if (err.name === 'CastError') {
+      next(new DataError(`Пользователь с идентификатором ${req.params.userId} не был найден.`));
+    }
     next(err);
   }
 };
@@ -88,25 +107,23 @@ const login = async (req, res, next) => {
       throw new UnauthError('Неправильные email/password. Попробуйте еще раз.');
     }
 
-    const { NODE_ENV, JWT_SECRET } = process.env;
-
     const token = jwt.sign(
       { _id: user._id },
-      NODE_ENV === 'production' ? JWT_SECRET : 'some-very-secret-code',
-      { expiresIn: '7d' }
+      'some-very-secret-code',
+      { expiresIn: '7d' },
     );
 
     return res.status(200).cookie('jwt', token, {
       maxAge: 3600000 * 24 * 7,
       httpOnly: true,
       sameSite: true,
-    }).send({ message: 'Welcome back.'});
+    }).send({ message: 'Welcome back.' });
   } catch (err) {
     next(err);
   }
 };
 
-const getCurrentUser = async (req, res, next) => { //here we should think that we have user._id prop in req object.
+const getCurrentUser = async (req, res, next) => { // here we should think that we have user._id prop in req object.
   try {
     const id = req.user._id;
     const user = await User.findById(id);

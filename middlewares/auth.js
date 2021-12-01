@@ -1,12 +1,12 @@
-const { UnauthError, ForbiddenError } = require('../utils/Errors');
 const jwt = require('jsonwebtoken');
+const UnauthError = require('../utils/UnauthError');
 
 module.exports = (req, res, next) => {
   try {
     const token = req.cookies.jwt;
 
     if (!token) {
-      throw new ForbiddenError('Неавторизованный запрос.');
+      throw new UnauthError('Неавторизованный запрос.');
     }
 
     let payload = undefined;
@@ -22,4 +22,4 @@ module.exports = (req, res, next) => {
   } catch (err) {
     next(err);
   }
-}
+};

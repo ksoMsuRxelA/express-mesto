@@ -21,7 +21,7 @@ const userSchema = new Schema({
       validator(v) {
         const regEx = /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/gm;
         return regEx.test(v);
-      }
+      },
     },
   },
   email: {
