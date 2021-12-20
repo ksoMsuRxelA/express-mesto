@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const { celebrate, Joi, errors } = require('celebrate');
+const { requestLogger, errorLogger } = require('./middlewares/logger');
 const users = require('./routes/users');
 const cards = require('./routes/cards');
 const { createUser, login } = require('./controllers/users');
@@ -37,6 +38,8 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+app.use(requestLogger);
+
 app.post('/signup', celebrate(joiObjectSignUp), createUser);
 app.post('/signin', celebrate(joiObjectSignIn), login);
 
@@ -47,6 +50,8 @@ app.use('/', cards);
 app.use((req, res, next) => {
   next(new NotFoundError('There is no such page...'));
 });
+
+app.use(errorLogger);
 
 app.use(errors());
 
